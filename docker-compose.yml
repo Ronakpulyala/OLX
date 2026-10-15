@@ -1,0 +1,72 @@
+version: "3.9"
+
+services:
+  # ─── PostgreSQL + PostGIS ───────────────────
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: sell-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: sell_db
+      POSTGRES_USER: sell_user
+      POSTGRES_PASSWORD: sell_pass
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sell_user -d sell_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis ──────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: sell-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Typesense (Search) ────────────────────
+  typesense:
+    image: typesense/typesense:27.1
+    container_name: sell-typesense
+    restart: unless-stopped
+    ports:
+      - "8108:8108"
+    environment:
+      TYPESENSE_DATA_DIR: /data
+      TYPESENSE_API_KEY: sell-typesense-key
+      TYPESENSE_ENABLE_CORS: "true"
+    volumes:
+      - typesense_data:/data
+
+  # ─── MinIO (S3-compatible local storage) ───
+  minio:
+    image: minio/minio:latest
+    container_name: sell-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: sell_minio
+      MINIO_ROOT_PASSWORD: sell_minio_pass
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+
+volumes:
+  pg_data:
+  redis_data:
+  typesense_data:
+  minio_data:
+
